@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>An-Naas Kelulut Bekeng - Carta Prestasi</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#FFD700">
+  <link rel="stylesheet" href="assets/css/redesign_dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<!-- Header tanpa navigasi -->
+<div class="header">
+  <div class="brand">
+    <img src="assets/bee-logo-design-for-honey-package-bee-logo-template-icon-illustration-design-free-vector (1).png" alt="An-Naas Kelulut Bekeng logo">
+    <div class="title">
+      <div class="main">An-Naas Kelulut Bekeng</div>
+      <div class="sub">Premium Kelulut Honey Management</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kandungan utama -->
+<div class="container">
+  <div class="controls">
+    <a href="index.html"><button>Dashboard</button></a>
+    <a href="colonies.html"><button>Koloni</button></a>
+    <a href="harvests.html"><button>Hasil</button></a>
+    <a href="care.html"><button>Penjagaan</button></a>
+    <a href="reports.html"><button>Laporan</button></a>
+    <a href="sales.html"><button>Jualan</button></a>
+    <a href="inventory.html"><button>Stok</button></a>
+    <a href="invoices.html"><button>Invois</button></a>
+    <a href="charts.html"><button>Graf</button></a>
+    <span id="driveStatus" style="margin-left:12px">Drive: Disconnected</span>
+  </div>
+
+  <h2>Carta Prestasi Hasil Tuai</h2>
+
+  <canvas id="chartCanvas" style="width:100%;max-width:800px;height:400px;background:var(--card);border-radius:12px;padding:10px;"></canvas>
+
+  <div class="note">
+    <button onclick="renderChart()">Refresh Chart</button>
+    <button onclick="exportStoreXLSX('harvests')">Export Harvests Excel</button>
+  </div>
+</div>
+
+<footer>Kelulut Management System</footer>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+
+<!-- App Scripts -->
+<script src="js/db.js"></script>
+<script src="js/drive-backup.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/report.js"></script>
+<script src="js/excel.js"></script>
+<script src="js/main.js"></script>
+
+<script>
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(e=>console.warn('SW failed',e));
+  }
+  window.addEventListener('load', async ()=>{
+    if(typeof initDB==='function') await initDB();
+    if(typeof scheduleDailyBackupAt==='function') scheduleDailyBackupAt(0,0);
+    if(typeof scheduleReminders==='function') scheduleReminders();
+    renderChart();
+  });
+
+  // Fungsi carta interaktif
+  function renderChart(){
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    if(window.myChart){ window.myChart.destroy(); }
+
+    const data = {
+      labels: ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'],
+      datasets: [{
+        label: 'Hasil Tuai (kg)',
+        data: [12, 15, 10, 18, 22, 30, 28, 35, 25, 40, 38, 45],
+        borderColor: '#FFD700',
+        backgroundColor: 'rgba(255,215,0,0.2)',
+        tension: 0.4,
+        fill: true,
+        borderWidth: 2,
+        pointRadius: 4
+      }]
+    };
+
+    const options = {
+      plugins: {
+        legend: { labels: { color: '#FFD700' } },
+        title: { display: false }
+      },
+      scales: {
+        x: { ticks: { color: '#e6e7e9' }, grid: { color: '#222' } },
+        y: { ticks: { color: '#e6e7e9' }, grid: { color: '#222' } }
+      }
+    };
+
+    window.myChart = new Chart(ctx, { type: 'line', data, options });
+  }
+</script>
+
+<!-- Dark mode toggle -->
+<script>
+(function(){
+  try{
+    if(localStorage.theme==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+    }
+  }catch(e){}
+})();
+function toggleTheme(){
+  try{
+    const t = localStorage.theme==='light'?'dark':'light';
+    if(t==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+      localStorage.theme='light';
+    } else {
+      document.documentElement.style.setProperty('--bg','#0b0c10');
+      document.documentElement.style.setProperty('--card','#0f1115');
+      document.documentElement.style.setProperty('--text','#e6e7e9');
+      document.documentElement.style.setProperty('--muted','#9aa0a6');
+      localStorage.theme='dark';
+    }
+  }catch(e){}
+}
+</script>
+
+</body>
+</html>

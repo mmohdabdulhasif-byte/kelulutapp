@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>An-Naas Kelulut Bekeng</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FFD700">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="assets/css/redesign_dark.css">
+</head>
+<body>
+
+<!-- Header tanpa navigasi -->
+<div class="header">
+  <div class="brand">
+    <img src="assets/bee-logo-design-for-honey-package-bee-logo-template-icon-illustration-design-free-vector (1).png" alt="An-Naas Kelulut Bekeng logo">
+    <div class="title">
+      <div class="main">An-Naas Kelulut Bekeng</div>
+      <div class="sub">Premium Kelulut Honey Management</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kandungan -->
+<div class="container">
+  <div class="controls">
+    <a href="index.html"><button>Dashboard</button></a>
+    <a href="colonies.html"><button>Koloni</button></a>
+    <a href="harvests.html"><button>Hasil</button></a>
+    <a href="care.html"><button>Penjagaan</button></a>
+    <a href="reports.html"><button>Laporan</button></a>
+    <a href="sales.html"><button>Jualan</button></a>
+    <a href="inventory.html"><button>Stok</button></a>
+    <a href="invoices.html"><button>Invois</button></a>
+    <a href="charts.html"><button>Graf</button></a>
+    <span id="driveStatus" style="margin-left:12px">Drive: Disconnected ❌</span>
+  </div>
+
+  <h2>Dashboard</h2>
+  <div class="card-grid">
+    <div class="card"><strong id="countColonies">0</strong><div>Jumlah Koloni</div></div>
+    <div class="card"><strong id="totalHarvest">0</strong><div>Jumlah Hasil (kg)</div></div>
+    <div class="card"><strong id="monthlySales">0</strong><div>Jualan Bulanan (RM)</div></div>
+    <div class="card"><strong id="dueCare">0</strong><div>Penjagaan Hari Ini</div></div>
+  </div>
+  <div class="note">Sambungkan Google Drive untuk backup automatik setiap hari; perubahan juga akan disegerakan (auto-backup).</div>
+</div>
+
+<footer>Kelulut Management System</footer>
+
+<!-- libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+
+<!-- app scripts (pastikan fail-fail ini wujud dalam projek anda) -->
+<script src="js/db.js"></script>         <!-- fungsi IndexedDB anda: add/save/fetch -->
+<script src="js/notifications.js"></script>
+<script src="js/report.js"></script>
+<script src="js/excel.js"></script>
+<script src="js/main.js"></script>
+
+<!-- === Google Drive Integration (gapi) + Auto-Restore + Auto-Backup + Auto-on-change === -->
+<script>
+/*
+  Perhatian:
+  - Pastikan Google Cloud Console: OAuth Client ID (Web application) telah
+    disetkan Authorized JavaScript origins termasuk domain/localhost anda.
+  - CLIENT_ID gunakan yang anda ada (saya guna ID yang anda beri).
+*/
+const CLIENT_ID = '253249814475-79vie8d9ovh5evmh6ra69q01ot8g5rd6.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+let gapiInited = false, authInstance = null;
+
+// Initialize gapi client & auth2
+async function initGapi() {
+  return new Promise((resolve) => {
+    if (gapiInited) return resolve();
+    gapi.load('client:auth2', async () => {
+      try {
+        await gapi.client.init({ clientId: CLIENT_ID, scope: SCOPES });
+        authInstance = gapi.auth2.getAuthInstance();
+        gapiInited = true;
+        updateDriveStatus();
+        // listen sign-in status change
+        authInstance.isSignedIn.listen(async (signed) => {
+          updateDriveStatus();
+          if (signed && !localStorage.getItem('kelulut_restored')) {
+            await autoRestoreOnce();
+          }
+          if (signed) scheduleDailyBackupAt(3,0); // default 03:00
+        });
+        // if already signed-in when init, fire restore/backup
+        if (isSignedIn() && !localStorage.getItem('kelulut_restored')) {
+          autoRestoreOnce();
+        }
+        if (isSignedIn()) scheduleDailyBackupAt(3,0);
+      } catch (e) {
+        console.error('gapi init error', e);
+      }
+      resolve();
+    });
+  });
+}
+
+function isSignedIn() {
+  return authInstance && authInstance.isSignedIn.get();
+}
+
+function updateDriveStatus() {
+  const el = document.getElementById('driveStatus');
+  if (!el) return;
+  const connected = isSignedIn();
+  el.textContent = connected ? 'Drive: Connected ✅' : 'Drive: Disconnected ❌';
+  el.style.color = connected ? '#34a853' : '#ff4444';
+}
+
+// Sign in / out
+async function signInAndInit() {
+  await initGapi();
+  try {
+    if (!isSignedIn()) await authInstance.signIn();
+    updateDriveStatus();
+    alert('✅ Sambungan Google Drive berjaya.');
+    // Do auto-restore once (if not already)
+    await autoRestoreOnce();
+    scheduleDailyBackupAt(3,0);
+  } catch (e) {
+    console.error(e);
+    alert('❌ Google Sign-In gagal: ' + (e.message||e));
+  }
+}
+async function signOutDrive() {
+  if (authInstance) {
+    await authInstance.signOut();
+    updateDriveStatus();
+    localStorage.removeItem('kelulut_restored');
+    alert('Log keluar Google Drive berjaya.');
+  }
+}
+
+// Ensure backup folder exists (or create)
+async function ensureBackupFolder() {
+  const res = await gapi.client.drive.files.list({
+    q: "name='Kelulut Management Backup' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+    fields: 'files(id,name)'
+  });
+  if (res.result.files && res.result.files.length) return res.result.files[0].id;
+  const created = await gapi.client.drive.files.create({
+    resource: { name: 'Kelulut Management Backup', mimeType: 'application/vnd.google-apps.folder' },
+    fields: 'id'
+  });
+  return created.result.id;
+}
+
+// helper for multipart upload
+function createMultipart(boundary, metadata, content) {
+  const delim = '\r\n--' + boundary + '\r\n';
+  const close = '\r\n--' + boundary + '--';
+  return delim + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) + delim +
+    'Content-Type: application/json\r\n\r\n' + content + close;
+}
+
+async function uploadToFolder(folderId, filename, content) {
+  const boundary = '-------314159265358979323846';
+  const metadata = { name: filename, parents: [folderId], mimeType: 'application/json' };
+  const body = createMultipart(boundary, metadata, content);
+  const res = await gapi.client.request({
+    path: '/upload/drive/v3/files',
+    method: 'POST',
+    params: { uploadType: 'multipart' },
+    headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
+    body
+  });
+  return res.result;
+}
+
+// perform backup now
+async function performBackupNow() {
+  try {
+    await initGapi();
+    if (!isSignedIn()) { alert('⚠️ Sila sambungkan Google Drive dahulu.'); return {ok:false, error:'not_signed_in'}; }
+    const folderId = await ensureBackupFolder();
+    // exportAllData() harus wujud dalam js/db.js atau js/main.js
+    if (typeof exportAllData !== 'function') {
+      console.warn('exportAllData() not found — pastikan js/db.js menyediakan fungsi ini.');
+      alert('Fungsi exportAllData() tidak wujud. Backup tidak dilakukan.');
+      return {ok:false,error:'no_exportAllData'};
+    }
+    const json = await exportAllData();
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    const filename = 'kelulut_backup_' + stamp + '.json';
+    const res = await uploadToFolder(folderId, filename, json);
+    localStorage.setItem('kelulut_lastBackup', new Date().toISOString());
+    updateDriveStatus();
+    console.log('Backup uploaded', res);
+    return {ok:true, result:res};
+  } catch (e) {
+    console.error('performBackupNow error', e);
+    return {ok:false, error:e};
+  }
+}
+
+// restore latest backup (manual)
+async function restoreFromDrive() {
+  try {
+    await initGapi();
+    if (!isSignedIn()) { alert('⚠️ Sila sambungkan Google Drive dahulu.'); return; }
+    const res = await gapi.client.drive.files.list({
+      q: "name contains 'kelulut_backup_' and trashed=false",
+      fields: 'files(id,name,modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 1
+    });
+    if (!res.result.files || !res.result.files.length) { alert('❌ Tiada fail backup dijumpai.'); return; }
+    const latest = res.result.files[0];
+    const file = await gapi.client.drive.files.get({ fileId: latest.id, alt: 'media' });
+    if (typeof importAllData !== 'function') {
+      console.warn('importAllData() not found — pastikan js/db.js menyediakan fungsi ini.');
+      alert('Fungsi importAllData() tidak wujud. Restore tidak dapat dilakukan.');
+      return;
+    }
+    await importAllData(file.body);
+    alert('✅ Data dipulihkan dari: ' + latest.name);
+    localStorage.setItem('kelulut_restored','true');
+  } catch (e) {
+    console.error('restoreFromDrive error', e);
+    alert('❌ Gagal restore: ' + (e.message||e));
+  }
+}
+
+// auto-restore once after first successful login (or on init if already signed-in)
+async function autoRestoreOnce() {
+  try {
+    if (localStorage.getItem('kelulut_restored')) return;
+    // try to restore latest backup automatically (if user wants to)
+    // NOTE: automatic restore can overwrite local data — user consent recommended.
+    // We will prompt user before automatically restoring.
+    if (!confirm('Mahu pulihkan data dari backup Drive terkini (jika ada)? Fail lama akan ditimpa. Tekan OK untuk terus, Cancel untuk langkau.')) {
+      localStorage.setItem('kelulut_restored','skipped');
+      return;
+    }
+    await restoreFromDrive();
+    // flag set inside restoreFromDrive on success
+  } catch (e) {
+    console.error('autoRestoreOnce error', e);
+  }
+}
+
+// scheduling daily backup
+function scheduleDailyBackupAt(hour, minute) {
+  try {
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    const delay = target - now;
+    setTimeout(async () => {
+      await performBackupNow();
+      setInterval(performBackupNow, 24*3600*1000);
+    }, delay);
+  } catch (e) {
+    console.error('scheduleDailyBackupAt error', e);
+  }
+}
+
+// ----------------------
+// Auto-backup when data changes (debounced)
+// ----------------------
+let __kelulut_auto_backup_timer = null;
+async function autoBackupOnChange() {
+  if (!isSignedIn()) return; // only backup when connected
+  if (__kelulut_auto_backup_timer) clearTimeout(__kelulut_auto_backup_timer);
+  __kelulut_auto_backup_timer = setTimeout(async () => {
+    console.log('Auto-backup triggered due to data change...');
+    try {
+      await performBackupNow();
+      console.log('Auto-backup done.');
+    } catch (e) {
+      console.error('Auto-backup failed', e);
+    }
+  }, 5000); // 5s debounce
+}
+
+// Hook common save functions if present
+function tryWrap(fnName) {
+  try {
+    const orig = window[fnName];
+    if (typeof orig === 'function') {
+      window[fnName] = async function(...args) {
+        const res = await orig.apply(this, args);
+        try { autoBackupOnChange(); } catch(e){/*ignore*/ }
+        return res;
+      };
+    }
+  } catch(e){}
+}
+// list of commonly used save function names in your app
+['saveDataToStore','addColony','saveColony','addHarvest','saveHarvest','addSale','saveSale','addInvoice','saveInvoice','addInventory','saveInventory'].forEach(tryWrap);
+
+// also listen to custom event 'kelulut:data-changed' to trigger auto-backup
+window.addEventListener('kelulut:data-changed', ()=> autoBackupOnChange());
+
+// If your app cannot be wrapped, you can dispatch event manually after save:
+// window.dispatchEvent(new Event('kelulut:data-changed'));
+
+// Expose functions to window for buttons
+window.signInAndInit = signInAndInit;
+window.signOutDrive = signOutDrive;
+window.performBackupNow = performBackupNow;
+window.restoreFromDrive = restoreFromDrive;
+window.scheduleDailyBackupAt = scheduleDailyBackupAt;
+
+// initialize gapi on load
+window.addEventListener('load', () => {
+  initGapi();
+});
+</script>
+
+<!-- Drive UI -->
+<div id="gdrive-ui" style="position:fixed;right:12px;bottom:12px;z-index:9999;">
+  <button onclick="signInAndInit()" style="padding:10px 14px;border:none;border-radius:8px;background:#1a73e8;color:white;font-weight:600;">Connect Drive</button>
+  <button onclick="performBackupNow()" style="padding:10px 14px;border:none;margin-left:6px;background:#34a853;color:white;font-weight:600;">Backup Now</button>
+  <button onclick="restoreFromDrive()" style="padding:10px 14px;border:none;margin-left:6px;background:#fbbc05;color:#000;font-weight:600;">Restore</button>
+  <button onclick="signOutDrive()" style="padding:10px 14px;border:none;margin-left:6px;background:#ea4335;color:white;font-weight:600;">Logout</button>
+</div>
+
+<!-- Dark mode toggle -->
+<script>
+(function(){
+  try{
+    if(localStorage.theme==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+    }
+  }catch(e){}
+})();
+function toggleTheme(){
+  try{
+    const t = localStorage.theme==='light'?'dark':'light';
+    if(t==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+      localStorage.theme='light';
+    } else {
+      document.documentElement.style.setProperty('--bg','#0b0c10');
+      document.documentElement.style.setProperty('--card','#0f1115');
+      document.documentElement.style.setProperty('--text','#e6e7e9');
+      document.documentElement.style.setProperty('--muted','#9aa0a6');
+      localStorage.theme='dark';
+    }
+  }catch(e){}
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1 @@
+Kelulut Management System - Full Pro package with Export Excel. Upload this ZIP to WebIntoApp.com (Create App -> Upload ZIP). Start URL: index.html. Ensure you add your Google account as Test User in Google Cloud OAuth for Drive backup to work.

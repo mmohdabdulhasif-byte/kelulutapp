@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>An-Naas Kelulut Bekeng - Hasil Tuai</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#FFD700">
+  <link rel="stylesheet" href="assets/css/redesign_dark.css">
+</head>
+<body>
+
+<!-- Header tanpa navigasi -->
+<div class="header">
+  <div class="brand">
+    <img src="assets/bee-logo-design-for-honey-package-bee-logo-template-icon-illustration-design-free-vector (1).png" alt="An-Naas Kelulut Bekeng logo">
+    <div class="title">
+      <div class="main">An-Naas Kelulut Bekeng</div>
+      <div class="sub">Premium Kelulut Honey Management</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kandungan utama -->
+<div class="container">
+  <div class="controls">
+    <a href="index.html"><button>Dashboard</button></a>
+    <a href="colonies.html"><button>Koloni</button></a>
+    <a href="harvests.html"><button>Hasil</button></a>
+    <a href="care.html"><button>Penjagaan</button></a>
+    <a href="reports.html"><button>Laporan</button></a>
+    <a href="sales.html"><button>Jualan</button></a>
+    <a href="inventory.html"><button>Stok</button></a>
+    <a href="invoices.html"><button>Invois</button></a>
+    <a href="charts.html"><button>Graf</button></a>
+    <span id="driveStatus" style="margin-left:12px">Drive: Disconnected</span>
+  </div>
+
+  <h2>Hasil Tuai</h2>
+
+  <form id="formHarvest" class="form-row">
+    <select id="harvestColony" class="input"></select>
+    <input id="harvestKg" class="input" type="number" step="0.1" placeholder="Berat (kg)">
+    <input id="harvestDate" class="input" type="date">
+    <button type="submit">Rekod Hasil</button>
+  </form>
+
+  <table id="harvestTable">
+    <thead>
+      <tr><th>Koloni</th><th>Kg</th><th>Tarikh</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="note">
+    <button onclick="exportStoreXLSX('harvests')">Export Excel</button>
+    <button onclick="exportReportPDF('harvestTable')">Export PDF</button>
+  </div>
+</div>
+
+<footer>Kelulut Management System</footer>
+
+<!-- Libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+
+<!-- App scripts -->
+<script src="js/db.js"></script>
+<script src="js/drive-backup.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/report.js"></script>
+<script src="js/excel.js"></script>
+<script src="js/main.js"></script>
+
+<script>
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(e=>console.warn('SW failed',e));
+  }
+  window.addEventListener('load', async ()=>{
+    if(typeof initDB==='function') await initDB();
+    if(typeof scheduleDailyBackupAt==='function') scheduleDailyBackupAt(0,0);
+    if(typeof scheduleReminders==='function') scheduleReminders();
+  });
+</script>
+
+<!-- Dark mode toggle -->
+<script>
+(function(){
+  try{
+    if(localStorage.theme==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+    }
+  }catch(e){}
+})();
+function toggleTheme(){
+  try{
+    const t = localStorage.theme==='light'?'dark':'light';
+    if(t==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+      localStorage.theme='light';
+    } else {
+      document.documentElement.style.setProperty('--bg','#0b0c10');
+      document.documentElement.style.setProperty('--card','#0f1115');
+      document.documentElement.style.setProperty('--text','#e6e7e9');
+      document.documentElement.style.setProperty('--muted','#9aa0a6');
+      localStorage.theme='dark';
+    }
+  }catch(e){}
+}
+</script>
+
+</body>
+</html>

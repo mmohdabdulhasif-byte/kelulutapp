@@ -1,0 +1,15 @@
+Redesign applied: Dark-mode modern header + shared CSS
+Files modified:
+- care.html
+- charts.html
+- colonies.html
+- harvests.html
+- index.html
+- inventory.html
+- invoices.html
+- reports.html
+- sales.html
+- offline.html
+
+Shared CSS: assets/css/redesign_dark.css
+Logo used: assets/bee-logo-design-for-honey-package-bee-logo-template-icon-illustration-design-free-vector (1).png

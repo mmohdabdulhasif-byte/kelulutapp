@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <title>An-Naas Kelulut Bekeng - Offline</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="assets/css/redesign_dark.css">
+  <meta name="theme-color" content="#FFD700">
+</head>
+<body>
+
+<!-- Header tanpa navigasi -->
+<div class="header">
+  <div class="brand">
+    <img src="assets/bee-logo-design-for-honey-package-bee-logo-template-icon-illustration-design-free-vector (1).png" alt="An-Naas Kelulut Bekeng logo">
+    <div class="title">
+      <div class="main">An-Naas Kelulut Bekeng</div>
+      <div class="sub">Premium Kelulut Honey Management</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kandungan utama -->
+<div class="container" style="text-align:center;margin-top:60px;">
+  <h2>Mod Luar Talian</h2>
+  <p>Anda sedang offline. Beberapa ciri mungkin tidak tersedia.</p>
+  <p>Sila sambung semula ke internet atau gunakan data yang disimpan.</p>
+  <button onclick="window.location.reload()" style="margin-top:20px;padding:10px 18px;border:none;border-radius:8px;background:#FFD700;color:#000;font-weight:600;">Cuba Semula</button>
+</div>
+
+<footer style="text-align:center;margin-top:50px;">Kelulut Management System</footer>
+
+<!-- Tema -->
+<script>
+(function(){
+  try{
+    if(localStorage.theme==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+    }
+  }catch(e){}
+})();
+function toggleTheme(){
+  try{
+    const t = localStorage.theme==='light'?'dark':'light';
+    if(t==='light'){
+      document.documentElement.style.setProperty('--bg','#f6f7f9');
+      document.documentElement.style.setProperty('--card','#ffffff');
+      document.documentElement.style.setProperty('--text','#0b0c10');
+      document.documentElement.style.setProperty('--muted','#5b6166');
+      localStorage.theme='light';
+    } else {
+      document.documentElement.style.setProperty('--bg','#0b0c10');
+      document.documentElement.style.setProperty('--card','#0f1115');
+      document.documentElement.style.setProperty('--text','#e6e7e9');
+      document.documentElement.style.setProperty('--muted','#9aa0a6');
+      localStorage.theme='dark';
+    }
+  }catch(e){}
+}
+</script>
+
+</body>
+</html>
